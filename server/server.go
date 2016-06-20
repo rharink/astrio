@@ -1,16 +1,18 @@
-package main
+package server
 
 import (
 	"io/ioutil"
 	"net/http"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bmizerany/pat"
 	_ "github.com/coreos/dex/pkg/log"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
+	"github.com/rauwekost/astrio/configuration"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -67,8 +69,15 @@ type Server struct {
 	middleware alice.Chain
 }
 
+var (
+	Version string
+	Build   string
+	Date    string
+	log     = logrus.WithFields(logrus.Fields{"package": "server"})
+)
+
 //NewServer returns a new server instance based on configuration
-func NewServer(cfg *Config) (*Server, error) {
+func New(cfg *configuration.Config) (*Server, error) {
 	s := Server{
 		addr:            cfg.ServerAddress,
 		writeWait:       cfg.ServerWriteWait,
@@ -161,7 +170,7 @@ func (s *Server) createTempJWT() (string, error) {
 //init initializes the server befor running
 func (s *Server) init() error {
 	log.Infof("initializing...")
-	log.Infof("version [%s] build[%s] buildDate[%s]", version, build, date)
+	log.Infof("version [%s] build[%s] buildDate[%s]", Version, Build, Date)
 
 	//middleware
 	log.Info("creating middleware...")

@@ -1,6 +1,10 @@
 package main
 
-import "github.com/Sirupsen/logrus"
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/rauwekost/astrio/configuration"
+	"github.com/rauwekost/astrio/server"
+)
 
 //version information variables
 var (
@@ -11,9 +15,7 @@ var (
 )
 
 func main() {
-	cfg := GetConfiguration()
-
-	s, err := NewServer(cfg)
+	s, err := server.New(configuration.Load())
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package main
+package server
 
 //hub maintains the set of active connections and broadcasts messages to the
 //connections.

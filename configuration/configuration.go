@@ -1,4 +1,4 @@
-package main
+package configuration
 
 import (
 	"time"
@@ -52,9 +52,9 @@ type Config struct {
 
 //GetConfiguration retrieves the configuration object collapsing all inputs
 //into one configuration object
-func GetConfiguration() *Config {
+func Load() *Config {
 	//setup default configuration file locations
-	viper.SetConfigName("astrio")
+	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
 
 	//setup environment variables
@@ -101,7 +101,7 @@ func GetConfiguration() *Config {
 
 //WatchConfiguration watch the configuration for any changes and run the
 //given function when it occurs
-func WatchConfiguration(f func(fsnotify.Event)) {
+func Watch(f func(fsnotify.Event)) {
 	viper.WatchConfig()
 	viper.OnConfigChange(f)
 }
