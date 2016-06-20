@@ -9,46 +9,59 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
-	//the address the server is bound on
-	ServerAddress string
+type (
+	Config struct {
+		Server *Server
+		Game   *Game
+	}
 
-	//frames per second
-	ServerFPS int
+	//Server specific configuration
+	Server struct {
+		//the address the server is bound on
+		Address string
 
-	//time allowed to write a message to the peer
-	ServerWriteWait time.Duration
+		//frames per second
+		FPS int
 
-	//time allowed to read the nex pong message from the peer
-	ServerPongWait time.Duration
+		//time allowed to write a message to the peer
+		WriteWait time.Duration
 
-	//send pings to peer with this period. Must be less than pongWait
-	ServerPingPeriod time.Duration
+		//time allowed to read the nex pong message from the peer
+		PongWait time.Duration
 
-	//maximum message size allowed from peer
-	ServerMaxMessageSize int64
+		//send pings to peer with this period. Must be less than pongWait
+		PingPeriod time.Duration
 
-	//size of the upgrader read buffer
-	ServerReadBufferSize int
+		//maximum message size allowed from peer
+		MaxMessageSize int64
 
-	//size of the upgrader write buffer
-	ServerWriteBufferSize int
+		//size of the upgrader read buffer
+		ReadBufferSize int
 
-	//jwt algorithm
-	ServerJWTAlgorithm string
+		//size of the upgrader write buffer
+		WriteBufferSize int
 
-	//path to the jwt key
-	ServerJWTSecret string
+		//jwt algorithm
+		JWTAlgorithm string
 
-	//private signing key
-	ServerJWTPrivate string
+		//path to the jwt key
+		JWTSecret string
 
-	//the public counterpart of the private key
-	ServerJWTPublic string
+		//private signing key
+		JWTPrivate string
 
-	//allowed origins * means all
-	ServerAllowedOrigins []string
-}
+		//the public counterpart of the private key
+		JWTPublic string
+
+		//allowed origins * means all
+		AllowedOrigins []string
+	}
+
+	//Game specific configuration
+	Game struct {
+		Scramble bool
+	}
+)
 
 //GetConfiguration retrieves the configuration object collapsing all inputs
 //into one configuration object
@@ -82,19 +95,24 @@ func Load() *Config {
 	}
 
 	return &Config{
-		ServerAddress:         viper.GetString("server.address"),
-		ServerFPS:             viper.GetInt("server.fps"),
-		ServerWriteWait:       viper.GetDuration("server.writeWait"),
-		ServerPongWait:        viper.GetDuration("server.pongWait"),
-		ServerPingPeriod:      viper.GetDuration("server.pingPeriod"),
-		ServerMaxMessageSize:  int64(viper.GetInt("server.maxMessageSize")),
-		ServerReadBufferSize:  viper.GetInt("server.readBufferSize"),
-		ServerWriteBufferSize: viper.GetInt("server.writeBufferSize"),
-		ServerJWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
-		ServerJWTSecret:       viper.GetString("server.jwtKey"),
-		ServerJWTPrivate:      viper.GetString("server.jwtPrivate"),
-		ServerJWTPublic:       viper.GetString("server.jwtPublic"),
-		ServerAllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
+		Server: &Server{
+			Address:         viper.GetString("server.address"),
+			FPS:             viper.GetInt("server.fps"),
+			WriteWait:       viper.GetDuration("server.writeWait"),
+			PongWait:        viper.GetDuration("server.pongWait"),
+			PingPeriod:      viper.GetDuration("server.pingPeriod"),
+			MaxMessageSize:  int64(viper.GetInt("server.maxMessageSize")),
+			ReadBufferSize:  viper.GetInt("server.readBufferSize"),
+			WriteBufferSize: viper.GetInt("server.writeBufferSize"),
+			JWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
+			JWTSecret:       viper.GetString("server.jwtKey"),
+			JWTPrivate:      viper.GetString("server.jwtPrivate"),
+			JWTPublic:       viper.GetString("server.jwtPublic"),
+			AllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
+		},
+		Game: &Game{
+			Scramble: viper.GetBool("game.scramble"),
+		},
 	}
 }
 

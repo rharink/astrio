@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
 	"github.com/rauwekost/astrio/configuration"
+	"github.com/rauwekost/astrio/game"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -37,6 +38,9 @@ type Server struct {
 
 	//middleware for each request
 	middleware alice.Chain
+
+	//list of games
+	games []*game.Game
 }
 
 //NewServer returns a new server instance based on cfg
@@ -77,16 +81,16 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ws.SetReadLimit(s.cfg.ServerMaxMessageSize)
-	ws.SetReadDeadline(time.Now().Add(s.cfg.ServerPongWait))
-	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.cfg.ServerPongWait)); return nil })
+	ws.SetReadLimit(s.cfg.Server.MaxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait))
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait)); return nil })
 	room := s.hub.Get(claims["room"].(string))
 	c := &connection{
 		send:       make(chan []byte, 256),
 		ws:         ws,
 		room:       room,
-		pingPeriod: s.cfg.ServerPingPeriod,
-		writeWait:  s.cfg.ServerWriteWait,
+		pingPeriod: s.cfg.Server.PingPeriod,
+		writeWait:  s.cfg.Server.WriteWait,
 	}
 
 	room.register <- c
@@ -117,10 +121,10 @@ func (s *Server) init() error {
 	//upgrader
 	log.Info("creating http upgrader...")
 	s.upgrader = websocket.Upgrader{
-		ReadBufferSize:  s.cfg.ServerReadBufferSize,
-		WriteBufferSize: s.cfg.ServerWriteBufferSize,
+		ReadBufferSize:  s.cfg.Server.ReadBufferSize,
+		WriteBufferSize: s.cfg.Server.WriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			for _, o := range s.cfg.ServerAllowedOrigins {
+			for _, o := range s.cfg.Server.AllowedOrigins {
 				if o == "*" || o == r.Header.Get("Origin") {
 					return true
 				}
@@ -133,7 +137,7 @@ func (s *Server) init() error {
 	//http server
 	log.Info("creating http-server...")
 	s.httpServer = &http.Server{
-		Addr:    s.cfg.ServerAddress,
+		Addr:    s.cfg.Server.Address,
 		Handler: s.httpHandler(),
 	}
 	log.Info("http-server created.")
