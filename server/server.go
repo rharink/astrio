@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -95,31 +94,6 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	go c.readPump()
 }
 
-func (s *Server) createTempJWT() (string, error) {
-	t := jwt.NewWithClaims(signingMethodFromString(s.cfg.ServerJWTAlgorithm), jwt.MapClaims{
-		"user_id":  1,
-		"room":     "astio",
-		"team":     "astrio",
-		"skin_url": "",
-		"exp":      time.Now().Add(300 * time.Second),
-	})
-
-	switch signingMethodFromString(s.cfg.ServerJWTAlgorithm) {
-	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.cfg.ServerJWTPrivate)
-		if err != nil {
-			return "", err
-		}
-		signKey, err := jwt.ParseRSAPrivateKeyFromPEM(b)
-		if err != nil {
-			return "", err
-		}
-		return t.SignedString(signKey)
-	default:
-		return t.SignedString([]byte(s.cfg.ServerJWTSecret))
-	}
-}
-
 //init initializes the server befor running
 func (s *Server) init() error {
 	log.Infof("initializing...")
@@ -129,7 +103,7 @@ func (s *Server) init() error {
 	log.Info("creating middleware...")
 	m := jwtmiddleware.Middleware{
 		ParameterName: "token",
-		Keyfunc:       s.getKeyFunc,
+		Keyfunc:       s.getJWTKey,
 		Successfunc: func(r *http.Request, t *jwt.Token) {
 			context.Set(r, "token", t)
 		},
@@ -171,43 +145,17 @@ func (s *Server) init() error {
 
 	//temporary jwt token
 	log.Info("creating temporary jwt token")
-	t, err := s.createTempJWT()
+	t, err := s.createJWT(&jwt.MapClaims{
+		"user_id":  1,
+		"room":     "astio",
+		"team":     "astrio",
+		"skin_url": "",
+		"exp":      time.Now().Add(300 * time.Second),
+	})
 	if err != nil {
 		log.Errorf("error while creating temp jwt-token: %s", err)
 	}
 	log.Infof("temporary token: %s", t)
 
 	return nil
-}
-
-func (s *Server) getKeyFunc(t *jwt.Token) (interface{}, error) {
-	switch t.Method {
-	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.cfg.ServerJWTPublic)
-		if err != nil {
-			return nil, err
-		}
-		key, err := jwt.ParseRSAPublicKeyFromPEM(b)
-		if err != nil {
-			return nil, err
-		}
-
-		return key, nil
-	case jwt.SigningMethodHS256:
-		fallthrough
-	default:
-		return []byte(s.cfg.ServerJWTSecret), nil
-	}
-}
-
-func signingMethodFromString(str string) jwt.SigningMethod {
-	switch str {
-	case "HS256":
-		return jwt.SigningMethodHS256
-	case "RS256":
-		return jwt.SigningMethodRS256
-	default:
-		log.Fatalf("unsupported signing-method: %s", str)
-		return jwt.SigningMethodHS256
-	}
 }
