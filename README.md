@@ -1,4 +1,4 @@
-Astio
-=====
+Astrio
+======
 
 Game server for Astrio
