@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
 	"github.com/rauwekost/astrio/configuration"
-	"github.com/rauwekost/astrio/game"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -30,7 +29,7 @@ type Server struct {
 	//websocket upgrader
 	upgrader websocket.Upgrader
 
-	//hub handles multiple connections comming and going
+	//hub handles multiple games
 	hub *Hub
 
 	//httpServer for handling socket transport
@@ -38,9 +37,6 @@ type Server struct {
 
 	//middleware for each request
 	middleware alice.Chain
-
-	//list of games
-	games []*game.Game
 }
 
 //NewServer returns a new server instance based on cfg
