@@ -5,28 +5,28 @@ import "sync"
 //Hub holds multiple rooms
 type Hub struct {
 	sync.RWMutex
-	rooms map[string]*room
+	games map[string]*Game
 }
 
 //NewHub returns a new Hub
 func NewHub() *Hub {
 	return &Hub{
-		rooms: make(map[string]*room, 0),
+		games: make(map[string]*Game, 0),
 	}
 }
 
 //Get a room by key
-func (h *Hub) Get(key string) *room {
+func (h *Hub) Get(key string) *Game {
 	h.RLock()
 	defer h.RUnlock()
 
-	room, ok := h.rooms[key]
+	game, ok := h.games[key]
 
 	if !ok {
 		// Create a new room
-		room = newRoom(key)
-		h.rooms[key] = room
+		game = NewGame(key)
+		h.games[key] = game
 	}
 
-	return room
+	return game
 }

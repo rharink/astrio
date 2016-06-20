@@ -14,7 +14,7 @@ type connection struct {
 	send chan []byte
 
 	//pointer to the hub this connection belongs to
-	room *room
+	game *Game
 
 	//tick time
 	pingPeriod time.Duration
@@ -23,25 +23,20 @@ type connection struct {
 	writeWait time.Duration
 }
 
-func NewConnection(ws *websocket.Conn, room *room, tick time.Duration, writeWait time.Duration) *connection {
-	conn := connection{
+func NewConnection(ws *websocket.Conn, game *Game, tick time.Duration, writeWait time.Duration) *connection {
+	return &connection{
 		ws:         ws,
 		send:       make(chan []byte, 256),
-		room:       room,
+		game:       game,
 		pingPeriod: tick,
 		writeWait:  writeWait,
 	}
-
-	go conn.readPump()
-	go conn.writePump()
-
-	return &conn
 }
 
 //readPump pumps messages from the websocket connection to the hub.
 func (c *connection) readPump() {
 	defer func() {
-		c.room.unregister <- c
+		c.game.unregister <- c
 		c.ws.Close()
 	}()
 	for {
@@ -49,7 +44,20 @@ func (c *connection) readPump() {
 		if err != nil {
 			break
 		}
-		c.room.broadcast <- message
+
+		//ignore empty messages
+		if len(message) == 0 {
+			continue
+		}
+
+		//spam
+		if len(message) > 2048 {
+			c.game.unregister <- c
+			c.ws.Close()
+		}
+		c.game.packetHandler.OnMessage(message)
+
+		c.game.broadcast <- message
 	}
 }
 

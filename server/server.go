@@ -80,16 +80,16 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	ws.SetReadLimit(s.cfg.Server.MaxMessageSize)
 	ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait))
 	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait)); return nil })
-	room := s.hub.Get(claims["room"].(string))
+	game := s.hub.Get(claims["room"].(string))
 	c := &connection{
 		send:       make(chan []byte, 256),
 		ws:         ws,
-		room:       room,
+		game:       game,
 		pingPeriod: s.cfg.Server.PingPeriod,
 		writeWait:  s.cfg.Server.WriteWait,
 	}
 
-	room.register <- c
+	game.register <- c
 	go c.writePump()
 	go c.readPump()
 }

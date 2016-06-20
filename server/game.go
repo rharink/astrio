@@ -1,5 +1,7 @@
 package server
 
+import "github.com/rauwekost/astrio/server/packet"
+
 type (
 	Game struct {
 		//unique identifier for the game
@@ -7,6 +9,9 @@ type (
 
 		//if the game is running
 		running bool
+
+		//packet handler handle packets
+		packetHandler *packet.Handler
 
 		//map of active connections
 		connections map[*connection]bool
@@ -22,14 +27,16 @@ type (
 	}
 )
 
+//NewGame returns a new Game instance
 func NewGame(id string) *Game {
 	g := &Game{
-		id:          id,
-		running:     false,
-		connections: make(map[*connection]bool),
-		broadcast:   make(chan []byte),
-		register:    make(chan *connection),
-		unregister:  make(chan *connection),
+		id:            id,
+		running:       false,
+		connections:   make(map[*connection]bool),
+		broadcast:     make(chan []byte),
+		register:      make(chan *connection),
+		unregister:    make(chan *connection),
+		packetHandler: packet.NewHandler(),
 	}
 
 	go g.listen()
