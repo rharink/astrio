@@ -12,62 +12,9 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
-	cfg "github.com/rauwekost/astrio/configuration"
+	"github.com/rauwekost/astrio/configuration"
 	"github.com/rauwekost/jwt-middleware"
 )
-
-type Server struct {
-	//address to bind on
-	addr string
-
-	//frames per second
-	fps int
-
-	//time allowed to write a message to the peer
-	writeWait time.Duration
-
-	//time allowed to read the nex pong message from the peer
-	pongWait time.Duration
-
-	//send pings to peer with this period. Must be less than pongWait
-	pingPeriod time.Duration
-
-	//maximum message size allowed from peer
-	maxMessageSize int64
-
-	//websocket upgrader
-	upgrader websocket.Upgrader
-
-	//hub handles multiple connections comming and going
-	hub *Hub
-
-	//size of the upgrader read buffer
-	readBufferSize int
-
-	//size of the upgrader write buffer
-	writeBufferSize int
-
-	//algorithm that jwt uses
-	jwtAlgorithm string
-
-	//path to the jwt key
-	jwtSecret string
-
-	//private jwt key
-	jwtPrivate string
-
-	//public jwt key
-	jwtPublic string
-
-	//allowed orgings
-	allowedOrigins []string
-
-	//httpServer for handling socket transport
-	httpServer *http.Server
-
-	//middleware for each request
-	middleware alice.Chain
-}
 
 var (
 	Version string
@@ -76,21 +23,27 @@ var (
 	log     = logrus.WithFields(logrus.Fields{"package": "server"})
 )
 
+type Server struct {
+	//configuration object
+	cfg *configuration.Config
+
+	//websocket upgrader
+	upgrader websocket.Upgrader
+
+	//hub handles multiple connections comming and going
+	hub *Hub
+
+	//httpServer for handling socket transport
+	httpServer *http.Server
+
+	//middleware for each request
+	middleware alice.Chain
+}
+
 //NewServer returns a new server instance based on cfg
-func New() (*Server, error) {
+func New(cfg *configuration.Config) (*Server, error) {
 	s := Server{
-		addr:            cfg.ServerAddress,
-		writeWait:       cfg.ServerWriteWait,
-		pongWait:        cfg.ServerPongWait,
-		pingPeriod:      cfg.ServerPingPeriod,
-		maxMessageSize:  cfg.ServerMaxMessageSize,
-		readBufferSize:  cfg.ServerReadBufferSize,
-		writeBufferSize: cfg.ServerWriteBufferSize,
-		jwtAlgorithm:    cfg.ServerJWTAlgorithm,
-		jwtSecret:       cfg.ServerJWTSecret,
-		jwtPrivate:      cfg.ServerJWTPrivate,
-		jwtPublic:       cfg.ServerJWTPublic,
-		allowedOrigins:  cfg.ServerAllowedOrigins,
+		cfg: cfg,
 	}
 
 	return &s, nil
@@ -125,16 +78,16 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ws.SetReadLimit(s.maxMessageSize)
-	ws.SetReadDeadline(time.Now().Add(s.pongWait))
-	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.pongWait)); return nil })
+	ws.SetReadLimit(s.cfg.ServerMaxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(s.cfg.ServerPongWait))
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.cfg.ServerPongWait)); return nil })
 	room := s.hub.Get(claims["room"].(string))
 	c := &connection{
 		send:       make(chan []byte, 256),
 		ws:         ws,
 		room:       room,
-		pingPeriod: s.pingPeriod,
-		writeWait:  s.writeWait,
+		pingPeriod: s.cfg.ServerPingPeriod,
+		writeWait:  s.cfg.ServerWriteWait,
 	}
 
 	room.register <- c
@@ -143,7 +96,7 @@ func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) createTempJWT() (string, error) {
-	t := jwt.NewWithClaims(signingMethodFromString(s.jwtAlgorithm), jwt.MapClaims{
+	t := jwt.NewWithClaims(signingMethodFromString(s.cfg.ServerJWTAlgorithm), jwt.MapClaims{
 		"user_id":  1,
 		"room":     "astio",
 		"team":     "astrio",
@@ -151,9 +104,9 @@ func (s *Server) createTempJWT() (string, error) {
 		"exp":      time.Now().Add(300 * time.Second),
 	})
 
-	switch signingMethodFromString(s.jwtAlgorithm) {
+	switch signingMethodFromString(s.cfg.ServerJWTAlgorithm) {
 	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.jwtPrivate)
+		b, err := ioutil.ReadFile(s.cfg.ServerJWTPrivate)
 		if err != nil {
 			return "", err
 		}
@@ -163,7 +116,7 @@ func (s *Server) createTempJWT() (string, error) {
 		}
 		return t.SignedString(signKey)
 	default:
-		return t.SignedString([]byte(s.jwtSecret))
+		return t.SignedString([]byte(s.cfg.ServerJWTSecret))
 	}
 }
 
@@ -190,10 +143,10 @@ func (s *Server) init() error {
 	//upgrader
 	log.Info("creating http upgrader...")
 	s.upgrader = websocket.Upgrader{
-		ReadBufferSize:  s.readBufferSize,
-		WriteBufferSize: s.writeBufferSize,
+		ReadBufferSize:  s.cfg.ServerReadBufferSize,
+		WriteBufferSize: s.cfg.ServerWriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			for _, o := range s.allowedOrigins {
+			for _, o := range s.cfg.ServerAllowedOrigins {
 				if o == "*" || o == r.Header.Get("Origin") {
 					return true
 				}
@@ -206,7 +159,7 @@ func (s *Server) init() error {
 	//http server
 	log.Info("creating http-server...")
 	s.httpServer = &http.Server{
-		Addr:    s.addr,
+		Addr:    s.cfg.ServerAddress,
 		Handler: s.httpHandler(),
 	}
 	log.Info("http-server created.")
@@ -230,7 +183,7 @@ func (s *Server) init() error {
 func (s *Server) getKeyFunc(t *jwt.Token) (interface{}, error) {
 	switch t.Method {
 	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.jwtPublic)
+		b, err := ioutil.ReadFile(s.cfg.ServerJWTPublic)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +196,7 @@ func (s *Server) getKeyFunc(t *jwt.Token) (interface{}, error) {
 	case jwt.SigningMethodHS256:
 		fallthrough
 	default:
-		return []byte(s.jwtSecret), nil
+		return []byte(s.cfg.ServerJWTSecret), nil
 	}
 }
 

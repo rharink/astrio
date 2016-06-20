@@ -15,8 +15,7 @@ var (
 )
 
 func main() {
-	configuration.Load()
-	s, err := server.New()
+	s, err := server.New(configuration.Load())
 	if err != nil {
 		log.Fatal(err)
 	}

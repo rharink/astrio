@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
+type Config struct {
 	//the address the server is bound on
 	ServerAddress string
 
@@ -48,11 +48,11 @@ var (
 
 	//allowed origins * means all
 	ServerAllowedOrigins []string
-)
+}
 
 //GetConfiguration retrieves the configuration object collapsing all inputs
 //into one configuration object
-func Load() {
+func Load() *Config {
 	//setup default configuration file locations
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -81,26 +81,26 @@ func Load() {
 		panic(err)
 	}
 
-	//set variables
-	ServerAddress = viper.GetString("server.address")
-	ServerFPS = viper.GetInt("server.fps")
-	ServerWriteWait = viper.GetDuration("server.writeWait")
-	ServerPongWait = viper.GetDuration("server.pongWait")
-	ServerPingPeriod = viper.GetDuration("server.pingPeriod")
-	ServerMaxMessageSize = int64(viper.GetInt("server.maxMessageSize"))
-	ServerReadBufferSize = viper.GetInt("server.readBufferSize")
-	ServerWriteBufferSize = viper.GetInt("server.writeBufferSize")
-	ServerJWTAlgorithm = viper.GetString("server.jwtAlgorithm")
-	ServerJWTSecret = viper.GetString("server.jwtKey")
-	ServerJWTPrivate = viper.GetString("server.jwtPrivate")
-	ServerJWTPublic = viper.GetString("server.jwtPublic")
-	ServerAllowedOrigins = viper.GetStringSlice("server.allowedOrigins")
+	return &Config{
+		ServerAddress:         viper.GetString("server.address"),
+		ServerFPS:             viper.GetInt("server.fps"),
+		ServerWriteWait:       viper.GetDuration("server.writeWait"),
+		ServerPongWait:        viper.GetDuration("server.pongWait"),
+		ServerPingPeriod:      viper.GetDuration("server.pingPeriod"),
+		ServerMaxMessageSize:  int64(viper.GetInt("server.maxMessageSize")),
+		ServerReadBufferSize:  viper.GetInt("server.readBufferSize"),
+		ServerWriteBufferSize: viper.GetInt("server.writeBufferSize"),
+		ServerJWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
+		ServerJWTSecret:       viper.GetString("server.jwtKey"),
+		ServerJWTPrivate:      viper.GetString("server.jwtPrivate"),
+		ServerJWTPublic:       viper.GetString("server.jwtPublic"),
+		ServerAllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
+	}
 }
 
 //WatchConfiguration watch the configuration for any changes and run the
 //given function when it occurs
 func Watch(f func(fsnotify.Event)) {
-	Load()
 	viper.WatchConfig()
 	viper.OnConfigChange(f)
 }
