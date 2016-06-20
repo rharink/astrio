@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
-	"github.com/rauwekost/astrio/configuration"
+	cfg "github.com/rauwekost/astrio/configuration"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -76,8 +76,8 @@ var (
 	log     = logrus.WithFields(logrus.Fields{"package": "server"})
 )
 
-//NewServer returns a new server instance based on configuration
-func New(cfg *configuration.Config) (*Server, error) {
+//NewServer returns a new server instance based on cfg
+func New() (*Server, error) {
 	s := Server{
 		addr:            cfg.ServerAddress,
 		writeWait:       cfg.ServerWriteWait,
@@ -187,7 +187,7 @@ func (s *Server) init() error {
 	s.middleware = alice.New(m.Handler, context.ClearHandler)
 	log.Info("middleware created.")
 
-	//upgrader @TODO: make CheckOrigin dynamic through configuration
+	//upgrader
 	log.Info("creating http upgrader...")
 	s.upgrader = websocket.Upgrader{
 		ReadBufferSize:  s.readBufferSize,
