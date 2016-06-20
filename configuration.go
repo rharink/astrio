@@ -13,6 +13,9 @@ type Config struct {
 	//the address the server is bound on
 	ServerAddress string
 
+	//frames per second
+	ServerFPS int
+
 	//time allowed to write a message to the peer
 	ServerWriteWait time.Duration
 
@@ -42,6 +45,9 @@ type Config struct {
 
 	//the public counterpart of the private key
 	ServerJWTPublic string
+
+	//allowed origins * means all
+	ServerAllowedOrigins []string
 }
 
 //GetConfiguration retrieves the configuration object collapsing all inputs
@@ -57,6 +63,7 @@ func GetConfiguration() *Config {
 
 	//set default server configuration
 	viper.SetDefault("server.address", "127.0.0.1:4000")
+	viper.SetDefault("server.fps", 24)
 	viper.SetDefault("server.writeWait", "1s")
 	viper.SetDefault("server.pongWait", "1s")
 	viper.SetDefault("server.pingPeriod", "0.5s")
@@ -67,6 +74,7 @@ func GetConfiguration() *Config {
 	viper.SetDefault("server.jwtSecret", "secret")
 	viper.SetDefault("server.jwtPrivate", "./server.key")
 	viper.SetDefault("server.jwtPublic", "./server.pub")
+	viper.SetDefault("server.allowedOrigins", []string{"astr.io"})
 
 	//read configuration from file(s)
 	if err := viper.ReadInConfig(); err != nil {
@@ -76,6 +84,7 @@ func GetConfiguration() *Config {
 	//return a configuration struct
 	return &Config{
 		ServerAddress:         viper.GetString("server.address"),
+		ServerFPS:             viper.GetInt("server.fps"),
 		ServerWriteWait:       viper.GetDuration("server.writeWait"),
 		ServerPongWait:        viper.GetDuration("server.pongWait"),
 		ServerPingPeriod:      viper.GetDuration("server.pingPeriod"),
@@ -86,6 +95,7 @@ func GetConfiguration() *Config {
 		ServerJWTSecret:       viper.GetString("server.jwtKey"),
 		ServerJWTPrivate:      viper.GetString("server.jwtPrivate"),
 		ServerJWTPublic:       viper.GetString("server.jwtPublic"),
+		ServerAllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
 	}
 }
 

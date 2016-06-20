@@ -1,14 +1,15 @@
 server:
     address:         127.0.0.1:4000
-    writeWait:       1s
-    pongWait:        1s
-    pingPeriod:      0.5s
-    maxMessageSize:  1024
-    readBufferSize:  512
-    writeBufferSize: 512
-    jwtSecret:       secret 
+    fps:             24
+    writeWait:       3s
+    pongWait:        5s
+    pingPeriod:      2s
+    maxMessageSize:  512
+    readBufferSize:  1024
+    writeBufferSize: 1024
+    jwtSecret:       secret
     jwtPrivate:      ./server.key
     jwtPublic:       ./server.pub
     jwtAlgorithm:    RS256
-
+    allowedOrigins:  ["*"]
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -19,6 +18,9 @@ type Server struct {
 	//address to bind on
 	addr string
 
+	//frames per second
+	fps int
+
 	//time allowed to write a message to the peer
 	writeWait time.Duration
 
@@ -33,6 +35,9 @@ type Server struct {
 
 	//websocket upgrader
 	upgrader websocket.Upgrader
+
+	//hub handles multiple connections comming and going
+	hub *Hub
 
 	//size of the upgrader read buffer
 	readBufferSize int
@@ -51,6 +56,9 @@ type Server struct {
 
 	//public jwt key
 	jwtPublic string
+
+	//allowed orgings
+	allowedOrigins []string
 
 	//httpServer for handling socket transport
 	httpServer *http.Server
@@ -73,7 +81,9 @@ func NewServer(cfg *Config) (*Server, error) {
 		jwtSecret:       cfg.ServerJWTSecret,
 		jwtPrivate:      cfg.ServerJWTPrivate,
 		jwtPublic:       cfg.ServerJWTPublic,
+		allowedOrigins:  cfg.ServerAllowedOrigins,
 	}
+
 	return &s, nil
 }
 
@@ -96,18 +106,40 @@ func (s *Server) httpHandler() http.Handler {
 
 //handleWebsocket handles incomming websocket connections
 func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
+	token := context.Get(r, "token").(*jwt.Token)
+	claims := token.Claims.(jwt.MapClaims)
 	ws, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		panic(err)
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("forbidden"))
+		log.Errorf("upgrader: %s", err)
+		return
 	}
 
-	fmt.Println(ws)
+	ws.SetReadLimit(s.maxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(s.pongWait))
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.pongWait)); return nil })
+	room := s.hub.Get(claims["room"].(string))
+	c := &connection{
+		send:       make(chan []byte, 256),
+		ws:         ws,
+		room:       room,
+		pingPeriod: s.pingPeriod,
+		writeWait:  s.writeWait,
+	}
+
+	room.register <- c
+	go c.writePump()
+	go c.readPump()
 }
 
 func (s *Server) createTempJWT() (string, error) {
 	t := jwt.NewWithClaims(signingMethodFromString(s.jwtAlgorithm), jwt.MapClaims{
-		"exp":     time.Now().Add(300 * time.Second),
-		"user_id": 1,
+		"user_id":  1,
+		"room":     "astio",
+		"team":     "astrio",
+		"skin_url": "",
+		"exp":      time.Now().Add(300 * time.Second),
 	})
 
 	switch signingMethodFromString(s.jwtAlgorithm) {
@@ -137,7 +169,7 @@ func (s *Server) init() error {
 		ParameterName: "token",
 		Keyfunc:       s.getKeyFunc,
 		Successfunc: func(r *http.Request, t *jwt.Token) {
-			fmt.Println("Hoera jwt is oke!")
+			context.Set(r, "token", t)
 		},
 		Errorfunc: func(err error) {
 			log.Error(err)
@@ -152,7 +184,12 @@ func (s *Server) init() error {
 		ReadBufferSize:  s.readBufferSize,
 		WriteBufferSize: s.writeBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			for _, o := range s.allowedOrigins {
+				if o == "*" || o == r.Header.Get("Origin") {
+					return true
+				}
+			}
+			return false
 		},
 	}
 	log.Info("upgrader created.")
@@ -164,6 +201,11 @@ func (s *Server) init() error {
 		Handler: s.httpHandler(),
 	}
 	log.Info("http-server created.")
+
+	//hub
+	log.Info("creating hub...")
+	s.hub = NewHub()
+	log.Info("hub created.")
 
 	//temporary jwt token
 	log.Info("creating temporary jwt token")

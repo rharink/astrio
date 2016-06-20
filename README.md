@@ -8,6 +8,9 @@ Game server for Astrio
 ```json
 {
     "exp": 1497961871,
-    "user_id": 1
+    "room": "somehash",
+    "team": "somehash",
+    "user_id": 1,
+    "skin_url": ""
 }
 ```
