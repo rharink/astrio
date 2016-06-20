@@ -26,9 +26,15 @@ _testmain.go
 #Temp builds
 astrio
 
+#rsa keys
+*.key
+*.pub
+
 #Configuration
 config.yml
 config.yaml
+astrio.yaml
+astrio.yml
 
 #Makefile binaries
 bin/*

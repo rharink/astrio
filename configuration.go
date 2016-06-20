@@ -35,7 +35,13 @@ type Config struct {
 	ServerJWTAlgorithm string
 
 	//path to the jwt key
-	ServerJWTKey string
+	ServerJWTSecret string
+
+	//private signing key
+	ServerJWTPrivate string
+
+	//the public counterpart of the private key
+	ServerJWTPublic string
 }
 
 //GetConfiguration retrieves the configuration object collapsing all inputs
@@ -57,8 +63,10 @@ func GetConfiguration() *Config {
 	viper.SetDefault("server.maxMessageSize", 1024)
 	viper.SetDefault("server.readBufferSize", 512)
 	viper.SetDefault("server.writeBufferSize", 512)
-	viper.SetDefault("server.jwtAlgorithm", "x")
-	viper.SetDefault("server.jwtKey", "./astrio.pem")
+	viper.SetDefault("server.jwtAlgorithm", "RS256")
+	viper.SetDefault("server.jwtSecret", "secret")
+	viper.SetDefault("server.jwtPrivate", "./server.key")
+	viper.SetDefault("server.jwtPublic", "./server.pub")
 
 	//read configuration from file(s)
 	if err := viper.ReadInConfig(); err != nil {
@@ -75,7 +83,9 @@ func GetConfiguration() *Config {
 		ServerReadBufferSize:  viper.GetInt("server.readBufferSize"),
 		ServerWriteBufferSize: viper.GetInt("server.writeBufferSize"),
 		ServerJWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
-		ServerJWTKey:          viper.GetString("server.jwtKey"),
+		ServerJWTSecret:       viper.GetString("server.jwtKey"),
+		ServerJWTPrivate:      viper.GetString("server.jwtPrivate"),
+		ServerJWTPublic:       viper.GetString("server.jwtPublic"),
 	}
 }
 

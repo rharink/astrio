@@ -6,7 +6,9 @@ server:
     maxMessageSize:  1024
     readBufferSize:  512
     writeBufferSize: 512
-    jwtKey:          ~
-    jwtAlgorith:     256
+    jwtSecret:       secret 
+    jwtPrivate:      ./server.key
+    jwtPublic:       ./server.pub
+    jwtAlgorithm:    RS256
 
 
