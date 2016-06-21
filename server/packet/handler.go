@@ -1,9 +1,6 @@
 package packet
 
-import (
-	"bytes"
-	"fmt"
-)
+import "fmt"
 
 type (
 	Handler struct {
@@ -12,6 +9,10 @@ type (
 		PressW     bool
 		PressSpace bool
 	}
+)
+
+const (
+	SET_DIRECTION uint8 = 16
 )
 
 func NewHandler() *Handler {
@@ -24,8 +25,10 @@ func NewHandler() *Handler {
 }
 
 func (h *Handler) OnMessage(message []byte) {
-	buffer := bytes.Buffer{}
-	buffer.Write(message)
-	b, _ := buffer.ReadByte()
-	fmt.Println(uint8(message[0]), b)
+	switch uint8(message[0]) {
+	case SET_DIRECTION:
+		fmt.Printf("moving player:%d to x:%d, y:%d \n", uint32(message[3]), uint32(message[1]), uint32(message[2]))
+	default:
+		return
+	}
 }

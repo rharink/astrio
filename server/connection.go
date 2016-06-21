@@ -57,7 +57,7 @@ func (c *connection) readPump() {
 		}
 		c.game.packetHandler.OnMessage(message)
 
-		c.game.broadcast <- message
+		//c.game.broadcast <- message
 	}
 }
 
@@ -75,7 +75,7 @@ func (c *connection) writePump() {
 				c.write(websocket.CloseMessage, []byte{})
 				return
 			}
-			if err := c.write(websocket.TextMessage, message); err != nil {
+			if err := c.write(websocket.BinaryMessage, message); err != nil {
 				return
 			}
 		case <-ticker.C:
