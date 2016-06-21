@@ -5,12 +5,13 @@ import (
 	_ "log"
 
 	"github.com/dgrijalva/jwt-go"
+	cfg "github.com/rauwekost/astrio/configuration"
 )
 
 func (s *Server) getJWTKey(t *jwt.Token) (interface{}, error) {
 	switch t.Method {
 	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.cfg.Server.JWTPublic)
+		b, err := ioutil.ReadFile(cfg.Server.JWTPublic)
 		if err != nil {
 			return nil, err
 		}
@@ -23,16 +24,16 @@ func (s *Server) getJWTKey(t *jwt.Token) (interface{}, error) {
 	case jwt.SigningMethodHS256:
 		fallthrough
 	default:
-		return []byte(s.cfg.Server.JWTSecret), nil
+		return []byte(cfg.Server.JWTSecret), nil
 	}
 }
 
 func (s *Server) createJWT(claims *jwt.MapClaims) (string, error) {
-	t := jwt.NewWithClaims(signingMethodFromString(s.cfg.Server.JWTAlgorithm), claims)
+	t := jwt.NewWithClaims(signingMethodFromString(cfg.Server.JWTAlgorithm), claims)
 
-	switch signingMethodFromString(s.cfg.Server.JWTAlgorithm) {
+	switch signingMethodFromString(cfg.Server.JWTAlgorithm) {
 	case jwt.SigningMethodRS256:
-		b, err := ioutil.ReadFile(s.cfg.Server.JWTPrivate)
+		b, err := ioutil.ReadFile(cfg.Server.JWTPrivate)
 		if err != nil {
 			return "", err
 		}
@@ -42,7 +43,7 @@ func (s *Server) createJWT(claims *jwt.MapClaims) (string, error) {
 		}
 		return t.SignedString(signKey)
 	default:
-		return t.SignedString([]byte(s.cfg.Server.JWTSecret))
+		return t.SignedString([]byte(cfg.Server.JWTSecret))
 	}
 }
 

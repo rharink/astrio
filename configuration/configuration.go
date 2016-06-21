@@ -3,20 +3,15 @@ package configuration
 import (
 	"time"
 
-	"gopkg.in/fsnotify.v1"
-
-	_ "github.com/coreos/dex/pkg/log"
 	"github.com/spf13/viper"
 )
 
-type (
-	Config struct {
-		Server *Server
-		Game   *Game
-	}
+var Server serverConfig
+var Game gameConfig
 
-	//Server specific configuration
-	Server struct {
+type (
+	//server specific configuration
+	serverConfig struct {
 		//the address the server is bound on
 		Address string
 
@@ -57,15 +52,16 @@ type (
 		AllowedOrigins []string
 	}
 
-	//Game specific configuration
-	Game struct {
-		Scramble bool
+	//game specific configuration
+	gameConfig struct {
+		Scramble   bool
+		MaxPlayers int
 	}
 )
 
-//GetConfiguration retrieves the configuration object collapsing all inputs
+//load retrieves the configuration object collapsing all inputs
 //into one configuration object
-func Load() *Config {
+func Load() {
 	//setup default configuration file locations
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -74,51 +70,27 @@ func Load() *Config {
 	viper.SetEnvPrefix("astrio")
 	viper.AutomaticEnv()
 
-	//set default server configuration
-	viper.SetDefault("server.address", "127.0.0.1:4000")
-	viper.SetDefault("server.fps", 24)
-	viper.SetDefault("server.writeWait", "1s")
-	viper.SetDefault("server.pongWait", "1s")
-	viper.SetDefault("server.pingPeriod", "0.5s")
-	viper.SetDefault("server.maxMessageSize", 1024)
-	viper.SetDefault("server.readBufferSize", 512)
-	viper.SetDefault("server.writeBufferSize", 512)
-	viper.SetDefault("server.jwtAlgorithm", "RS256")
-	viper.SetDefault("server.jwtSecret", "secret")
-	viper.SetDefault("server.jwtPrivate", "./server.key")
-	viper.SetDefault("server.jwtPublic", "./server.pub")
-	viper.SetDefault("server.allowedOrigins", []string{"astr.io"})
-
 	//read configuration from file(s)
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
-
-	return &Config{
-		Server: &Server{
-			Address:         viper.GetString("server.address"),
-			FPS:             viper.GetInt("server.fps"),
-			WriteWait:       viper.GetDuration("server.writeWait"),
-			PongWait:        viper.GetDuration("server.pongWait"),
-			PingPeriod:      viper.GetDuration("server.pingPeriod"),
-			MaxMessageSize:  int64(viper.GetInt("server.maxMessageSize")),
-			ReadBufferSize:  viper.GetInt("server.readBufferSize"),
-			WriteBufferSize: viper.GetInt("server.writeBufferSize"),
-			JWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
-			JWTSecret:       viper.GetString("server.jwtKey"),
-			JWTPrivate:      viper.GetString("server.jwtPrivate"),
-			JWTPublic:       viper.GetString("server.jwtPublic"),
-			AllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
-		},
-		Game: &Game{
-			Scramble: viper.GetBool("game.scramble"),
-		},
+	Server = serverConfig{
+		Address:         viper.GetString("server.address"),
+		FPS:             viper.GetInt("server.fps"),
+		WriteWait:       viper.GetDuration("server.writeWait"),
+		PongWait:        viper.GetDuration("server.pongWait"),
+		PingPeriod:      viper.GetDuration("server.pingPeriod"),
+		MaxMessageSize:  int64(viper.GetInt("server.maxMessageSize")),
+		ReadBufferSize:  viper.GetInt("server.readBufferSize"),
+		WriteBufferSize: viper.GetInt("server.writeBufferSize"),
+		JWTAlgorithm:    viper.GetString("server.jwtAlgorithm"),
+		JWTSecret:       viper.GetString("server.jwtKey"),
+		JWTPrivate:      viper.GetString("server.jwtPrivate"),
+		JWTPublic:       viper.GetString("server.jwtPublic"),
+		AllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
 	}
-}
-
-//WatchConfiguration watch the configuration for any changes and run the
-//given function when it occurs
-func Watch(f func(fsnotify.Event)) {
-	viper.WatchConfig()
-	viper.OnConfigChange(f)
+	Game = gameConfig{
+		Scramble:   viper.GetBool("game.scramble"),
+		MaxPlayers: viper.GetInt("game.maxPlayers"),
+	}
 }

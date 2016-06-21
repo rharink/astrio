@@ -1,6 +1,9 @@
 package server
 
-import "github.com/rauwekost/astrio/server/packet"
+import (
+	"fmt"
+	"time"
+)
 
 type (
 	Game struct {
@@ -10,37 +13,35 @@ type (
 		//if the game is running
 		running bool
 
-		//packet handler handle packets
-		packetHandler *packet.Handler
+		//map of active players holding connections
+		players map[*Player]bool
 
-		//map of active connections
-		connections map[*connection]bool
-
-		//inbound messages from the connections.
+		//inbound messages from the players.
 		broadcast chan []byte
 
-		//register requests from the connections.
-		register chan *connection
+		//register player
+		register chan *Player
 
-		//unregister requests from connections.
-		unregister chan *connection
+		//unregister Player
+		unregister chan *Player
+
+		ticker *time.Ticker
 	}
 )
 
 //NewGame returns a new Game instance
 func NewGame(id string) *Game {
 	g := &Game{
-		id:            id,
-		running:       false,
-		connections:   make(map[*connection]bool),
-		broadcast:     make(chan []byte),
-		register:      make(chan *connection),
-		unregister:    make(chan *connection),
-		packetHandler: packet.NewHandler(),
+		id:         id,
+		running:    false,
+		players:    make(map[*Player]bool),
+		broadcast:  make(chan []byte),
+		register:   make(chan *Player),
+		unregister: make(chan *Player),
+		ticker:     time.NewTicker(40 * time.Millisecond),
 	}
 
 	go g.listen()
-
 	return g
 }
 
@@ -48,23 +49,29 @@ func NewGame(id string) *Game {
 func (g *Game) listen() {
 	for {
 		select {
-		case c := <-g.register:
-			g.connections[c] = true
-		case c := <-g.unregister:
-			if _, ok := g.connections[c]; ok {
-				delete(g.connections, c)
-				close(c.send)
-			}
+		case p := <-g.register:
+			g.players[p] = true
+		case p := <-g.unregister:
+			g.RemovePlayer(p)
 		case m := <-g.broadcast:
-			for c := range g.connections {
+			for p := range g.players {
 				select {
-				case c.send <- m:
+				case p.sendch <- m:
 				default:
-					close(c.send)
-					delete(g.connections, c)
+					g.RemovePlayer(p)
 				}
 			}
+		case <-g.ticker.C:
+			fmt.Println("tick")
 		}
+	}
+}
+
+//RemovePlayer removes a player from the game
+func (g *Game) RemovePlayer(p *Player) {
+	if _, ok := g.players[p]; ok {
+		delete(g.players, p)
+		close(p.sendch)
 	}
 }
 

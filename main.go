@@ -11,14 +11,13 @@ var (
 	version string
 	build   string
 	date    string
-	log     = logrus.WithFields(logrus.Fields{"app": "astrio"})
+	log     = logrus.WithField("p", "main,b")
 )
 
 func main() {
-	s, err := server.New(configuration.Load())
-	if err != nil {
-		log.Fatal(err)
-	}
+	//load initial configuation
+	configuration.Load()
 
-	log.Fatal(s.Run())
+	//run the server
+	log.Fatal(server.New().Run())
 }

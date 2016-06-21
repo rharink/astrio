@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/context"
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
-	"github.com/rauwekost/astrio/configuration"
+	cfg "github.com/rauwekost/astrio/configuration"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -22,10 +22,8 @@ var (
 	log     = logrus.WithFields(logrus.Fields{"package": "server"})
 )
 
+//Server a server
 type Server struct {
-	//configuration object
-	cfg *configuration.Config
-
 	//websocket upgrader
 	upgrader websocket.Upgrader
 
@@ -40,12 +38,15 @@ type Server struct {
 }
 
 //NewServer returns a new server instance based on cfg
-func New(cfg *configuration.Config) (*Server, error) {
-	s := Server{
-		cfg: cfg,
+func New() *Server {
+	return &Server{
+		hub: NewHub(),
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  cfg.Server.ReadBufferSize,
+			WriteBufferSize: cfg.Server.WriteBufferSize,
+			CheckOrigin:     checkOrigins,
+		},
 	}
-
-	return &s, nil
 }
 
 //Run runs the server
@@ -60,38 +61,44 @@ func (s *Server) Run() error {
 //HttpHandler handles http traffic
 func (s *Server) httpHandler() http.Handler {
 	mux := pat.New()
-	mux.Add("GET", "/", s.middleware.ThenFunc(s.handleWebsocket))
+	mux.Add("GET", "/", s.middleware.ThenFunc(s.handleNewConnection))
 
 	return mux
 }
 
 //handleWebsocket handles incomming websocket connections
-func (s *Server) handleWebsocket(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleNewConnection(w http.ResponseWriter, r *http.Request) {
 	token := context.Get(r, "token").(*jwt.Token)
 	claims := token.Claims.(jwt.MapClaims)
-	ws, err := s.upgrader.Upgrade(w, r, nil)
+	ws, err := s.upgradeWebsocket(w, r)
 	if err != nil {
-		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("forbidden"))
+		NewForbiddenError(err).Render(w)
 		log.Errorf("upgrader: %s", err)
 		return
 	}
 
-	ws.SetReadLimit(s.cfg.Server.MaxMessageSize)
-	ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait))
-	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(s.cfg.Server.PongWait)); return nil })
+	//room is the game id. @TODO:Refactor room into into game-uuid or something
 	game := s.hub.Get(claims["room"].(string))
-	c := &connection{
-		send:       make(chan []byte, 256),
-		ws:         ws,
-		game:       game,
-		pingPeriod: s.cfg.Server.PingPeriod,
-		writeWait:  s.cfg.Server.WriteWait,
-	}
 
-	game.register <- c
-	go c.writePump()
-	go c.readPump()
+	//join a new player in the game
+	player := NewPlayer(ws, game, "1", "robert")
+
+	game.register <- player
+	go player.Reader()
+	go player.Writer()
+}
+
+//upgrade websocket
+func (s *Server) upgradeWebsocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
+	ws, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return nil, err
+	}
+	ws.SetReadLimit(cfg.Server.MaxMessageSize)
+	ws.SetReadDeadline(time.Now().Add(cfg.Server.PongWait))
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(cfg.Server.PongWait)); return nil })
+
+	return ws, nil
 }
 
 //init initializes the server befor running
@@ -114,34 +121,13 @@ func (s *Server) init() error {
 	s.middleware = alice.New(m.Handler, context.ClearHandler)
 	log.Info("middleware created.")
 
-	//upgrader
-	log.Info("creating http upgrader...")
-	s.upgrader = websocket.Upgrader{
-		ReadBufferSize:  s.cfg.Server.ReadBufferSize,
-		WriteBufferSize: s.cfg.Server.WriteBufferSize,
-		CheckOrigin: func(r *http.Request) bool {
-			for _, o := range s.cfg.Server.AllowedOrigins {
-				if o == "*" || o == r.Header.Get("Origin") {
-					return true
-				}
-			}
-			return false
-		},
-	}
-	log.Info("upgrader created.")
-
-	//http server
-	log.Info("creating http-server...")
+	//http transport
+	log.Info("creating http server...")
 	s.httpServer = &http.Server{
-		Addr:    s.cfg.Server.Address,
+		Addr:    cfg.Server.Address,
 		Handler: s.httpHandler(),
 	}
-	log.Info("http-server created.")
-
-	//hub
-	log.Info("creating hub...")
-	s.hub = NewHub()
-	log.Info("hub created.")
+	log.Info("http server created.")
 
 	//temporary jwt token
 	log.Info("creating temporary jwt token")

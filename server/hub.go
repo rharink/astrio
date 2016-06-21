@@ -30,3 +30,18 @@ func (h *Hub) Get(key string) *Game {
 
 	return game
 }
+
+//Length retuns the number of games
+func (h *Hub) Length() int {
+	return len(h.games)
+}
+
+//Stats returns a stats map of games and player amount
+func (h *Hub) Stats() map[string]int {
+	s := map[string]int{}
+	for _, g := range h.games {
+		s[g.id] = len(g.players)
+	}
+
+	return s
+}
