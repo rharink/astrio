@@ -27,7 +27,7 @@ type Server struct {
 	//websocket upgrader
 	upgrader websocket.Upgrader
 
-	//hub handles multiple games
+	//hub handles multiple rooms
 	hub *Hub
 
 	//httpServer for handling socket transport
@@ -55,6 +55,7 @@ func (s *Server) Run() error {
 		return err
 	}
 
+	log.Infof("server listening on: %s", cfg.Server.Address)
 	return s.httpServer.ListenAndServe()
 }
 
@@ -77,15 +78,13 @@ func (s *Server) handleNewConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//room is the game id. @TODO:Refactor room into into game-uuid or something
-	game := s.hub.Get(claims["room"].(string))
+	room := s.hub.Get(claims["game"].(string))
+	conn := NewConnection(ws, room)
 
-	//join a new player in the game
-	player := NewPlayer(ws, game, "1", "robert")
+	room.register <- conn
 
-	game.register <- player
-	go player.Reader()
-	go player.Writer()
+	go conn.ReadPump()
+	go conn.WritePump()
 }
 
 //upgrade websocket
@@ -132,11 +131,10 @@ func (s *Server) init() error {
 	//temporary jwt token
 	log.Info("creating temporary jwt token")
 	t, err := s.createJWT(&jwt.MapClaims{
-		"user_id":  1,
-		"room":     "astio",
-		"team":     "astrio",
-		"skin_url": "",
-		"exp":      time.Now().Add(300 * time.Second),
+		"user": 1,
+		"game": "astrio",
+		"team": "astrio",
+		"exp":  time.Now().Add(300 * time.Second),
 	})
 	if err != nil {
 		log.Errorf("error while creating temp jwt-token: %s", err)

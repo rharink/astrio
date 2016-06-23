@@ -2,8 +2,8 @@ package packet
 
 type MouseMove struct {
 	packet
-	X  float64
-	Y  float64
+	X  float32
+	Y  float32
 	ID uint32
 }
 
