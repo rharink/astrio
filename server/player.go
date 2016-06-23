@@ -64,9 +64,9 @@ func (p *Player) Reader() {
 
 //Writer pumps messages from the hub to the websocket connection.
 func (p *Player) Writer() {
-	ticker := time.NewTicker(configuration.Server.PingPeriod)
+	pong := time.NewTicker(configuration.Server.PingPeriod)
 	defer func() {
-		ticker.Stop()
+		pong.Stop()
 		p.ws.Close()
 	}()
 	for {
@@ -79,7 +79,7 @@ func (p *Player) Writer() {
 			if err := p.write(websocket.BinaryMessage, message); err != nil {
 				return
 			}
-		case <-ticker.C:
+		case <-pong.C:
 			if err := p.write(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}

@@ -9,11 +9,12 @@ import (
 
 type (
 	PacketHandler struct {
-		Player     *Player
-		Protocol   int
-		PressQ     bool
-		PressW     bool
-		PressSpace bool
+		Player          *Player
+		Protocol        int
+		HandshakePassed bool
+		PressQ          bool
+		PressW          bool
+		PressSpace      bool
 	}
 )
 
@@ -24,7 +25,7 @@ const (
 func NewPacketHandler(p *Player) *PacketHandler {
 	return &PacketHandler{
 		Player:     p,
-		Protocol:   1,
+		Protocol:   0,
 		PressQ:     false,
 		PressW:     false,
 		PressSpace: false,
@@ -34,7 +35,18 @@ func NewPacketHandler(p *Player) *PacketHandler {
 func (h *PacketHandler) OnMessage(message []byte) {
 	buf := bytes.NewReader(message)
 	var opcode uint8
+	var protocol uint32
 	binary.Read(buf, binary.LittleEndian, &opcode)
+
+	if !h.HandshakePassed {
+		if opcode != 254 {
+			return //wait for handshake
+		}
+		binary.Read(buf, binary.LittleEndian, &protocol)
+		if protocol < 1 || protocol > 8 {
+			h.Player.Unregister() //unsupported protocol
+		}
+	}
 
 	switch opcode {
 	case UPDATE_MOVEMENT:

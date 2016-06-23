@@ -3,6 +3,8 @@ package server
 import (
 	"fmt"
 	"time"
+
+	"github.com/rauwekost/astrio/server/packet"
 )
 
 type (
@@ -40,8 +42,15 @@ func NewGame(id string) *Game {
 		unregister: make(chan *Player),
 		ticker:     time.NewTicker(40 * time.Millisecond),
 	}
-
+	go func() {
+		for range g.ticker.C {
+			u := &packet.UpdateNodes{}
+			fmt.Println(u.Bytes())
+			g.Send(u.Bytes())
+		}
+	}()
 	go g.listen()
+
 	return g
 }
 
@@ -61,8 +70,6 @@ func (g *Game) listen() {
 					g.RemovePlayer(p)
 				}
 			}
-		case <-g.ticker.C:
-			fmt.Println("tick")
 		}
 	}
 }
