@@ -15,9 +15,6 @@ type (
 		//the address the server is bound on
 		Address string
 
-		//frames per second
-		FPS int
-
 		//time allowed to write a message to the peer
 		WriteWait time.Duration
 
@@ -54,8 +51,11 @@ type (
 
 	//game specific configuration
 	gameConfig struct {
-		Scramble   bool
+		//maximum numbers of players per game. server can host multiple games
 		MaxPlayers int
+
+		//tick, 1 tick = 1 milisecond (40 ticks = 25 fps)
+		Tick int
 	}
 )
 
@@ -76,7 +76,6 @@ func Load() {
 	}
 	Server = serverConfig{
 		Address:         viper.GetString("server.address"),
-		FPS:             viper.GetInt("server.fps"),
 		WriteWait:       viper.GetDuration("server.writeWait"),
 		PongWait:        viper.GetDuration("server.pongWait"),
 		PingPeriod:      viper.GetDuration("server.pingPeriod"),
@@ -90,7 +89,7 @@ func Load() {
 		AllowedOrigins:  viper.GetStringSlice("server.allowedOrigins"),
 	}
 	Game = gameConfig{
-		Scramble:   viper.GetBool("game.scramble"),
 		MaxPlayers: viper.GetInt("game.maxPlayers"),
+		Tick:       viper.GetInt("game.tick"),
 	}
 }

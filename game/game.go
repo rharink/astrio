@@ -1,6 +1,11 @@
 package game
 
-import "time"
+import (
+	"fmt"
+	"time"
+
+	cfg "github.com/rauwekost/astrio/configuration"
+)
 
 //Game ...
 type Game struct {
@@ -9,7 +14,7 @@ type Game struct {
 	//if the game is runninga
 	running bool
 	//ticker every 40ms (25fps)
-	mainLoop *time.Ticker
+	ticker *time.Ticker
 	//active players in the game
 	players map[*Player]bool
 	//inbound messages from the connections.
@@ -25,7 +30,7 @@ func New(id string) *Game {
 	return &Game{
 		id:         id,
 		running:    false,
-		mainLoop:   time.NewTicker(40 * time.Millisecond),
+		ticker:     time.NewTicker(time.Duration(cfg.Game.Tick) * time.Millisecond),
 		players:    make(map[*Player]bool),
 		broadcast:  make(chan []byte),
 		register:   make(chan *Player),
@@ -39,11 +44,7 @@ func (g *Game) Run() {
 		return
 	}
 
-	go func() {
-		for range g.mainLoop.C {
-		}
-	}()
-
+	//listen to incomming registers, unregisters, ticks etc.
 	go g.listen()
 
 	g.running = true
@@ -55,6 +56,7 @@ func (g *Game) Stop() {
 		return
 	}
 
+	g.ticker.Stop()
 	g.running = false
 }
 
@@ -62,6 +64,8 @@ func (g *Game) Stop() {
 func (g *Game) listen() {
 	for {
 		select {
+		case <-g.ticker.C:
+			g.mainLoop()
 		case p := <-g.register:
 			g.players[p] = true
 		case p := <-g.unregister:
@@ -79,6 +83,14 @@ func (g *Game) listen() {
 				}
 			}
 		}
+	}
+}
+
+//mainLoop is the games main loop. this gets called n times a second sending
+//updates to all players in the game
+func (g *Game) mainLoop() {
+	for p, _ := range g.players {
+		fmt.Println(p.Tracker)
 	}
 }
 

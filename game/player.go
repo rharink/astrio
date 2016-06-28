@@ -12,17 +12,21 @@ import (
 
 //Connection ...
 type Player struct {
-	ws     *websocket.Conn
-	sendch chan []byte
-	game   *Game
+	ws            *websocket.Conn
+	sendch        chan []byte
+	game          *Game
+	packetHandler *packet.Handler
+	Tracker       *PlayerTracker
 }
 
 //NewPlayer returns a new player
 func NewPlayer(ws *websocket.Conn, game *Game) *Player {
 	return &Player{
-		ws:     ws,
-		sendch: make(chan []byte, 256),
-		game:   game,
+		ws:            ws,
+		sendch:        make(chan []byte, 256),
+		game:          game,
+		packetHandler: packet.NewHandler(),
+		Tracker:       NewPlayerTracker(),
 	}
 }
 
@@ -49,13 +53,14 @@ func (p *Player) ReadPump() {
 			p.Close()
 		}
 
-		if packet.OPCode(message[0]) == packet.OPCodeServerMouseMove {
-			pack := packet.MouseMove{}
-			packet.Decode(message, &pack)
-			fmt.Printf("%+v", pack)
+		//handle packages
+		pack, err := p.packetHandler.OnMessage(message)
+		if err != nil {
+			logrus.Errorf("error handling packet: %s", err)
 		}
-		//send messages to the packet handler
-		//ph.OnMessage(message)
+
+		//update tracket according to packet structs
+		p.Tracker.Update(pack)
 	}
 }
 
