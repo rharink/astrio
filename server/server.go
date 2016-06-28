@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/justinas/alice"
 	cfg "github.com/rauwekost/astrio/configuration"
+	"github.com/rauwekost/astrio/game"
 	"github.com/rauwekost/jwt-middleware"
 )
 
@@ -27,8 +28,8 @@ type Server struct {
 	//websocket upgrader
 	upgrader websocket.Upgrader
 
-	//hub handles multiple rooms
-	hub *Hub
+	//hub handles multiple games
+	hub *game.Hub
 
 	//httpServer for handling socket transport
 	httpServer *http.Server
@@ -40,7 +41,7 @@ type Server struct {
 //NewServer returns a new server instance based on cfg
 func New() *Server {
 	return &Server{
-		hub: NewHub(),
+		hub: game.NewHub(),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  cfg.Server.ReadBufferSize,
 			WriteBufferSize: cfg.Server.WriteBufferSize,
@@ -78,13 +79,11 @@ func (s *Server) handleNewConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room := s.hub.Get(claims["game"].(string))
-	conn := NewConnection(ws, room)
+	g := s.hub.Get(claims["game"].(string))
+	g.Run()
 
-	room.register <- conn
-
-	go conn.ReadPump()
-	go conn.WritePump()
+	player := game.NewPlayer(ws, g)
+	player.Join()
 }
 
 //upgrade websocket

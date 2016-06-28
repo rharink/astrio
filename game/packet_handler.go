@@ -1,9 +1,9 @@
-package server
+package game
 
 import (
 	"fmt"
 
-	"github.com/rauwekost/astrio/server/packet"
+	"github.com/rauwekost/astrio/game/packet"
 )
 
 type (
