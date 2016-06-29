@@ -3,9 +3,18 @@ package game
 import "github.com/rauwekost/astrio/game/packet"
 
 type PlayerTracker struct {
-	Mouse struct {
-		X float32
-		Y float32
+	Mouse     Position
+	Color     Color
+	CenterPos Position
+	Viewbox   struct {
+		MinX       float32
+		MinY       float32
+		MaxX       float32
+		MaxY       float32
+		Width      float32
+		Height     float32
+		HalfWidth  float32
+		HalfHeight float32
 	}
 }
 

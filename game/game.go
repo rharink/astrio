@@ -5,6 +5,7 @@ import (
 	"time"
 
 	cfg "github.com/rauwekost/astrio/configuration"
+	"github.com/rauwekost/astrio/game/packet"
 )
 
 //Game ...
@@ -15,6 +16,8 @@ type Game struct {
 	running bool
 	//ticker every 40ms (25fps)
 	ticker *time.Ticker
+	//the last tick
+	lastTick time.Time
 	//active players in the game
 	players map[*Player]bool
 	//inbound messages from the connections.
@@ -44,8 +47,16 @@ func (g *Game) Run() {
 		return
 	}
 
-	//listen to incomming registers, unregisters, ticks etc.
+	//listen to incomming registers, unregisters and broadcasts.
 	go g.listen()
+
+	//mainloop ticker trigger
+	go func() {
+		for t := range g.ticker.C {
+			g.lastTick = t
+			g.mainLoop()
+		}
+	}()
 
 	g.running = true
 }
@@ -64,8 +75,6 @@ func (g *Game) Stop() {
 func (g *Game) listen() {
 	for {
 		select {
-		case <-g.ticker.C:
-			g.mainLoop()
 		case p := <-g.register:
 			g.players[p] = true
 		case p := <-g.unregister:
@@ -89,9 +98,23 @@ func (g *Game) listen() {
 //mainLoop is the games main loop. this gets called n times a second sending
 //updates to all players in the game
 func (g *Game) mainLoop() {
+	fmt.Println("tick", g.lastTick)
+	update := packet.UpdateNodes{}
 	for p, _ := range g.players {
-		fmt.Println(p.Tracker)
+		update.Nodes = append(update.Nodes, packet.Node{
+			ID:    1,
+			X:     p.Tracker.Mouse.X,
+			Y:     p.Tracker.Mouse.Y,
+			Size:  40,
+			R:     255,
+			G:     255,
+			B:     255,
+			Flags: 1,
+		})
 	}
+	b := update.Bytes()
+	fmt.Println(b)
+	g.Broadcast(b)
 }
 
 //broadcast a message to all players in the game
